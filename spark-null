@@ -1,0 +1,67 @@
+#!/bin/bash
+set -euo pipefail
+IFS=$'\n\t'
+ZERO_IS_NULL=0
+
+show_help() {
+    echo "$1 [-0] holman/spark wrapper handling nulls"
+    echo ""
+    echo "-0 = Make '0' act like 'n'"
+    echo "-h = Show help"
+    echo ""
+    exit 0
+}
+
+while getopts "h0" opt; do
+    case "$opt" in
+        0)
+            ZERO_IS_NULL=1
+            ;;
+        h)
+            show_help
+            exit 0
+            ;;
+    esac
+done
+shift $(( OPTIND - 1 ))
+
+IN_LINE=""
+while read line
+do
+    IN_LINE="${IN_LINE} $line"
+done < "/dev/stdin"
+
+VALUES=()
+HOLE_POSITIONS=()
+
+IFS=$' \n\t'
+
+read -ra ITEMS <<< "$IN_LINE"
+I=0
+for ITEM in "${ITEMS[@]}"; do
+    if [[ "$ITEM" != "n" ]] && [ "$ITEM" -eq 0 ] && [ "$ZERO_IS_NULL" -gt 0 ]; then
+        ITEM="n"
+    fi
+    if [ "${ITEM}" = "n" ]; then
+        HOLE_POSITIONS+=("${I}")
+    else
+        VALUES+=("${ITEM}")
+        I=$(( $I + 1 ))
+    fi
+done
+
+IFS=$'\n\t'
+
+GRAPH=$(echo "${VALUES[*]}" | spark)
+
+OUT=""
+
+for (( I=0; I<${#GRAPH}; I++ )); do
+    if [ ${#HOLE_POSITIONS[@]} -gt 0 ] && [ ${HOLE_POSITIONS[0]} -eq $I ]; then
+        HOLE_POSITIONS=( "${HOLE_POSITIONS[@]:1}" )
+        OUT+=" "
+    fi
+    OUT+="${GRAPH:$I:1}"
+done
+
+echo $OUT
