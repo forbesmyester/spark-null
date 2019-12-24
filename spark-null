@@ -2,12 +2,14 @@
 set -euo pipefail
 IFS=$'\n\t'
 ZERO_IS_NULL=0
+INVERT=0
 MAXIMUM=-1
 MINIMUM=-1
 
 show_help() {
     echo "$1  [-m MINIMUM][-n MAXIMUM] [-0] holman/spark wrapper handling nulls"
     echo ""
+    echo "-i = Use an inverted graph"
     echo "-m = Set the minimum value"
     echo "-n = Set the maximum value"
     echo "-0 = Make '0' act like 'n'"
@@ -16,8 +18,32 @@ show_help() {
     exit 0
 }
 
-while getopts "h0m:n:" opt; do
+min() {
+    VALS=("$@")
+    MIN=${VALS[0]}
+    for CURRENT in "${VALS[@]}"; do
+        if [ "$CURRENT" -lt "$MIN" ]; then
+            MIN=$CURRENT
+        fi
+    done
+    echo $MIN
+}
+
+max() {
+    VALS=("$@")
+    MAX=${VALS[0]}
+    for CURRENT in "${VALS[@]}"; do
+        if [ "$CURRENT" -gt "$MAX" ]; then
+            MAX=$CURRENT
+        fi
+    done
+    echo $MAX
+}
+
+while getopts "ih0m:n:" opt; do
     case "$opt" in
+        i)  INVERT=1
+            ;;
         n)  MAXIMUM="$OPTARG"
             ;;
         m)  MINIMUM="$OPTARG"
@@ -67,6 +93,15 @@ for ITEM in "${ITEMS[@]}"; do
 done
 
 IFS=$'\n\t'
+
+if [ "$INVERT" -gt 0 ]; then
+    MAX=$(max "${VALUES[@]}")
+    MIN=$(min "${VALUES[@]}")
+    for I in "${!VALUES[@]}"; do 
+        VALUES[$I]=$(($MAX - "${VALUES[$I]}"))
+    done
+fi
+
 
 GRAPH=$(echo "${VALUES[*]}" | spark)
 
