@@ -17,4 +17,12 @@ You can also use a `-0` switch to leave empty spaces where 0's are as well:
 
 This sometimes tells a more accurate story.
 
+Because `spark-null` supports minimum and maximum values you can draw positive and negative graphs relatively easily.
+
+    G1=$(echo "2 5 2 0 2 4" | ./spark-null -0 -m 0 -n 9)
+    G2=$(echo "9 9 9 7 9 9" | ./spark-null -0 -m 0 -n 9)
+    echo -e "\e[32m${G1}\n\e[30;41m${G2}"
+
+![pos-neg.png](./pos-neg.png)
+
 License: MIT
