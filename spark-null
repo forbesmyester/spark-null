@@ -128,4 +128,9 @@ for (( I=0; I<${#GRAPH}; I++ )); do
     OUT+="${GRAPH:$I:1}"
 done
 
+while [ ${#HOLE_POSITIONS[@]} -gt 0 ] && [ ${HOLE_POSITIONS[0]} -eq "0" ]; do
+    HOLE_POSITIONS=( "${HOLE_POSITIONS[@]:1}" )
+    OUT+=" "
+done
+
 echo $OUT
