@@ -2,6 +2,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 ZERO_IS_NULL=0
+OPTIND=1
 INVERT=0
 MAXIMUM=-1
 MINIMUM=-1
@@ -21,28 +22,6 @@ show_help() {
     echo "  -h = Show help"
     echo ""
     exit 0
-}
-
-min() {
-    VALS=("$@")
-    MIN=${VALS[0]}
-    for CURRENT in "${VALS[@]}"; do
-        if [ "$CURRENT" -lt "$MIN" ]; then
-            MIN=$CURRENT
-        fi
-    done
-    echo $MIN
-}
-
-max() {
-    VALS=("$@")
-    MAX=${VALS[0]}
-    for CURRENT in "${VALS[@]}"; do
-        if [ "$CURRENT" -gt "$MAX" ]; then
-            MAX=$CURRENT
-        fi
-    done
-    echo $MAX
 }
 
 while getopts "ih0m:n:" opt; do
@@ -73,19 +52,55 @@ done < "/dev/stdin"
 VALUES=()
 HOLE_POSITIONS=()
 
-if [ "$MINIMUM" -gt -1 ]; then
-    VALUES+=("${MINIMUM}")
-fi
+min() {
+    VALS=("$@")
+    MIN="n"
+    if [ "$MINIMUM" -gt -1 ]; then
+        MIN="${MINIMUM}"
+    fi
+    for CURRENT in "${VALS[@]}"; do
+        if [[ "$MIN" == "n" ]] || ([[ "$CURRENT" != "n" ]] && [ "$CURRENT" -lt "$MIN" ]); then
+            MIN=$CURRENT
+        fi
+    done
+    echo $MIN
+}
 
-if [ "$MAXIMUM" -gt -1 ]; then
-    VALUES+=("${MAXIMUM}")
-fi
+max() {
+    VALS=("$@")
+    MAX="n"
+    if [ "$MAXIMUM" -gt -1 ]; then
+        MAX="${MAXIMUM}"
+    fi
+    for CURRENT in "${VALS[@]}"; do
+        if [[ "$MAX" == "n" ]] || ([[ "$CURRENT" != "n" ]] && [ "$CURRENT" -gt "$MAX" ]); then
+            MAX=$CURRENT
+        fi
+    done
+    echo $MAX
+}
 
 IFS=$' \n\t'
 
 read -ra ITEMS <<< "$IN_LINE"
+
+MAX=$(max "${ITEMS[@]}")
+MIN=$(min "${ITEMS[@]}")
+if [ "$INVERT" -gt 0 ]; then
+    I=0
+    for ITEM in "${ITEMS[@]}"; do
+        if [[ "$ITEM" != "n" ]]; then
+            ITEMS[$I]=$(($MAX - "${ITEM}"))
+        fi
+        I=$(( $I + 1 ))
+    done
+fi
+
 I=0
 for ITEM in "${ITEMS[@]}"; do
+    if [ "$ITEM" == "n" ] && [[ $INVERT -gt 0 ]]; then
+        ITEM="$MAX"
+    fi
     if [[ "$ITEM" != "n" ]] && [ "$ITEM" -eq 0 ] && [ "$ZERO_IS_NULL" -gt 0 ]; then
         ITEM="n"
     fi
@@ -98,27 +113,11 @@ for ITEM in "${ITEMS[@]}"; do
 done
 
 IFS=$'\n\t'
-
-if [ "$INVERT" -gt 0 ]; then
-    MAX=$(max "${VALUES[@]}")
-    MIN=$(min "${VALUES[@]}")
-    for I in "${!VALUES[@]}"; do 
-        VALUES[$I]=$(($MAX - "${VALUES[$I]}"))
-    done
-fi
-
+VALUES+=("${MIN}")
+VALUES+=("${MAX}")
 
 GRAPH=$(echo "${VALUES[*]}" | spark)
-
-if [ "$MINIMUM" -gt -1 ]; then
-    GRAPH="${GRAPH:1}"
-fi
-
-if [ "$MAXIMUM" -gt -1 ]; then
-    GRAPH="${GRAPH:1}"
-fi
-
-OUT=""
+GRAPH="${GRAPH::-2}"
 
 for (( I=0; I<${#GRAPH}; I++ )); do
     while [ ${#HOLE_POSITIONS[@]} -gt 0 ] && [ ${HOLE_POSITIONS[0]} -eq $I ]; do
