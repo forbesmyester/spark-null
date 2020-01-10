@@ -86,6 +86,10 @@ read -ra ITEMS <<< "$IN_LINE"
 
 MAX=$(max "${ITEMS[@]}")
 MIN=$(min "${ITEMS[@]}")
+
+if [ "$MAX" -eq 0 ] && [ "$MIN" -eq 0 ]; then
+    exit 0
+fi
 if [ "$INVERT" -gt 0 ]; then
     I=0
     for ITEM in "${ITEMS[@]}"; do
